@@ -1,0 +1,23 @@
+<script>
+(function() {
+  var t = document.querySelector('template[shadow-styles]');
+  var shadowStyles = t && t.content.children;
+  var proto = Object.create(HTMLElement.prototype);
+  proto.createdCallback = function() {
+    var parent = this.parentNode;
+    if (parent) {
+      var shadowRoot = parent.createShadowRoot();
+      var child;
+      while ((child = this.firstChild)) {
+        if (child.localName == 'shadow-style') {
+          child.remove();
+          child = shadowStyles[child.getAttribute('index')].cloneNode(true);
+        }
+        shadowRoot.appendChild(child);
+      }
+      this.remove();
+    }
+  };
+  document.registerElement('shadow-root', {prototype: proto});
+})();
+</script>

@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <template shadow-styles>
+    <style shadow-style="0">
+      :host {
+        display: block;
+        padding: 4px;
+        margin: 4px;
+        background: beige;
+      }
+    </style>
+  </template>
+  <link rel="import" href="shadow-root.html">
+</head>
+
+<body>
+
+<host-one>
+  <shadow-root>
+    <shadow-style index="0"></shadow-style>
+    <div>Host 1 Start</div>
+    <content></content>
+    <div>Host 1 End</div>
+  </shadow-root>
+  <div>A</div>
+  <div>B</div>
+</host-one>
+
+<host-one>
+  <shadow-root>
+    <shadow-style index="0"></shadow-style>
+    <div>Host 1 Start</div>
+    <content></content>
+    <div>Host 1 End</div>
+  </shadow-root>
+  <div>C</div>
+  <div>D</div>
+</host-one>
+
+<script>
+  //ssrify();
+</script>
+
+</body>
+
+</html>
