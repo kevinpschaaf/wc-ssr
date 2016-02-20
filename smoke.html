@@ -20,8 +20,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         background: beige;
       }
     </style>
+    <style shadow-style="1">
+      :host {
+        display: block;
+        padding: 4px;
+        margin: 4px;
+        background: lightblue;
+      }
+    </style>
   </template>
   <link rel="import" href="shadow-root.html">
+
+  <!-- <script src="ssr.js"></script> -->
+
 </head>
 
 <body>
@@ -47,6 +58,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div>C</div>
   <div>D</div>
 </host-one>
+
+<host-two>
+  <shadow-root>
+    <shadow-style index="1"></shadow-style>
+    <div>Host 2 Start</div>
+    <content></content>
+    <div>Host 2 End</div>
+  </shadow-root>
+  <div>E</div>
+  <div>F</div>
+</host-two>
 
 <script>
   //ssrify();
