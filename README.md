@@ -9,7 +9,7 @@ For now it also removes all imports/scripts so it's just a static page (this exp
 cloned ssr-ified document.
 
 
-e.g. open http://polymerlabs.github.io/app-layout/templates/pesto/?dom=shadow, then paste this in the console:
+e.g. open https://shop.polymer-project.org/, then paste this in the console:
 
 ```js
 var s = document.createElement('script');
