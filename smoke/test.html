@@ -1,0 +1,43 @@
+<template s-s=""><style s-s="0">
+      :host {
+        display: inline-block;
+        background: pink;
+        border: 1px solid red;
+        padding: 10px;
+      }
+    </style><style s-s="1">
+      :host {
+        display: inline-block;
+        background: lightblue;
+        border: 1px solid blue;
+        padding: 10px;
+      }
+    </style></template><x-foo><s-r><s-s index="0"></s-s>
+    
+    <x-bar bar="yo"><s-r><s-s index="1"></s-s>
+    
+    <div>hi</div>
+  </s-r></x-bar>
+    <div>yo</div>
+  </s-r></x-foo><script>(function () {
+    let t = document.querySelector('template[s-s]');
+    let shadowStyles = t && t.content.children;
+    let shadowRoots = document.querySelectorAll('s-r');
+    for (let i=0; i<shadowRoots.length; i++) {
+      let sr = shadowRoots[i];
+      let parent = sr.parentNode;
+      if (parent) {
+        let shadowRoot = parent.attachShadow({mode:'open'});
+        let child;
+        while ((child = sr.firstChild)) {
+          if (child.localName == 's-s') {
+            child.remove();
+            child = shadowStyles[child.getAttribute('index')].cloneNode(true);
+          }
+          shadowRoot.appendChild(child);
+        }
+        parent.removeChild(sr);
+      }
+    }
+    document.body.hidden = false;
+  })()</script>

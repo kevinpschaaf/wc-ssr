@@ -1,0 +1,22 @@
+{
+  "name": "wc-ssr",
+  "version": "0.0.1",
+  "description": "Web Components SSR tooling",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kevinpschaaf/wc-ssr.git"
+  },
+  "author": "",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/kevinpschaaf/wc-ssr/issues"
+  },
+  "homepage": "https://github.com/kevinpschaaf/wc-ssr#readme",
+  "dependencies": {
+    "jsdom": "^11.0.0"
+  }
+}

@@ -13,7 +13,7 @@ e.g. open https://shop.polymer-project.org/, then paste this in the console:
 
 ```js
 var s = document.createElement('script');
-s.src = 'https://polygit2.appspot.com/wc-ssr+kevinpschaaf+:master/components/wc-ssr/ssr.js';
+s.src = 'https://polygit2.appspot.com/wc-ssr+kevinpschaaf+:master/components/wc-ssr/ssr-browser.js';
 s.onload = function() { window.ssrify(true); };
 document.head.appendChild(s);
 ```

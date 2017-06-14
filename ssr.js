@@ -1,34 +1,102 @@
-window.ssrify = function(upgrade) {
+const fs = require('fs');
+const jsdom = require('jsdom');
+const { JSDOM } = jsdom;
 
-  var shadowStyleList = [];
-  var shadowStyleMap = {};
+// Bring window and all window constructors into global scope
+const dom = new JSDOM();
+global.window = global;
+global.document = dom.window.document;
+Object.getOwnPropertyNames(dom.window)
+  .filter(n=>((n.indexOf('_') !== 0) && (n[0] == n[0].toUpperCase())))
+  .forEach(n=>global[n] = dom.window[n]);
 
-  function removeScripts(container) {
-    var scripts = container.querySelectorAll('script');
-    [].slice.call(scripts).forEach(function(el) {
-      el.remove();
-    });
+global.MutationObserver = class {
+  constructor(cb) {
+    this.cb = cb;
+    this._nodeMap = new Map();
   }
-
-  function removeImports(container) {
-    var imports = container.querySelectorAll('link[rel=import]');
-    [].slice.call(imports).forEach(function(el) {
-      el.remove();
-    });
+  observe(node) {
+    this._nodeMap.set(node, setTimeout(_ => this.cb([])));
   }
+  disconnect(node) {
+    clearTimeout(this._nodeMap.get(node));
+  }
+}
+const flush = function() {
+  return Promise.all(openAsyncs).then(() => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        window.Polymer && Polymer.flush();
+        if (openAsyncs.length) {
+          flush().then(resolve);
+        } else {
+          resolve();
+        }
+      });
+    });
+  })
+}
+let openAsyncs = new Set();
+global.fetch = url => {
+  let promise = new Promise((resolve, reject) => {
+    var request = new XMLHttpRequest();
+    request.onerror = () => {
+      openAsyncs.delete(promise);
+      reject();
+    };
+    request.onload = () => {
+      openAsyncs.delete(promise);
+      resolve({
+        json: () => Promise.resolve(request.responseText).then(JSON.parse)
+      })
+    };
+    request.open('get', url);
+    request.send();
+  });
+  openAsyncs.add(promise);
+  return promise;
+};
+global.performance = {
+  now() { return Date.now() }
+}
+const toCopy = ['addEventListener', 'removeEventListener', 'location'];
+toCopy.forEach(n => {
+  let val = dom.window[n];
+  global[n] = typeof n == 'function' ? val.bind(dom.window) : val;
+});
+global.requestAnimationFrame = window.setTimeout;
+global.cancelAnimationFrame = window.clearTimeout;
+global.Element.prototype.insertAdjacentElement = function() {} // silence ce polyfill warning
+global.Element.prototype.attachShadow = function() {
+  this.shadowRoot = document.createDocumentFragment();
+}
+global.Node.prototype.getRootNode = function() {
+  let node = this;
+  let parent;
+  while ((parent = node.parentNode)) {
+    node = parent;
+  }
+  return node;
+}
+require('../../components/custom-elements/custom-elements.min.js');
+
+const serialize = function(root) {
+
+  const shadowStyleList = [];
+  const shadowStyleMap = new Map();
 
   function replaceStyles(container) {
-    var styles = container.querySelectorAll('style');
-    [].slice.call(styles).forEach(function(el) {
-      var style = shadowStyleMap[el.textContent];
+    let styles = container.querySelectorAll('style');
+    Array.from(styles).forEach(function(el) {
+      let style = shadowStyleMap.get(el.textContent);
       if (!style) {
         style = el;
-        shadowStyleMap[style.textContent] = style;
+        shadowStyleMap.set(style.textContent, style);
         style.index = shadowStyleList.length;
-        style.setAttribute('shadow-style', style.index);
+        style.setAttribute('s-s', style.index);
         shadowStyleList.push(style);
       }
-      var shadowStyle = document.createElement('shadow-style');
+      const shadowStyle = document.createElement('s-s');
       shadowStyle.setAttribute('index', style.index);
       el.parentNode.replaceChild(shadowStyle, el);
     });
@@ -36,91 +104,89 @@ window.ssrify = function(upgrade) {
 
   function replaceShadowRoot(el, clonedEl) {
     if (el.shadowRoot) {
-      var shadowRoot = document.createElement('shadow-root');
-      for (var e=el.shadowRoot.firstChild; e; e=e.nextSibling) {
+      const shadowRoot = document.createDocumentFragment();
+      for (let e=el.shadowRoot.firstChild; e; e=e.nextSibling) {
         shadowRoot.appendChild(e.cloneNode(true));
       }
-      removeImports(shadowRoot);
       replaceStyles(shadowRoot);
       replaceShadowRoots(el.shadowRoot, shadowRoot);
-      clonedEl.insertBefore(shadowRoot, clonedEl.firstChild);
+      const srElement = document.createElement('s-r');
+      srElement.appendChild(shadowRoot);
+      clonedEl.insertBefore(srElement, clonedEl.firstChild);
     }
   }
 
   function replaceShadowRoots(container, clonedContainer) {
-    var elements = container.querySelectorAll('*');
-    var clonedElements = clonedContainer.querySelectorAll('*');
-    [].slice.call(elements).forEach(function(el, i) {
+    let elements = container.querySelectorAll('*');
+    let clonedElements = clonedContainer.querySelectorAll('*');
+    Array.from(elements).forEach(function(el, i) {
       replaceShadowRoot(el, clonedElements[i]);
     });
     return clonedContainer;
   }
 
-  function insertBase(doc, clonedDoc) {
-    if (!doc.querySelector('base[href]')) {
-      var base = document.createElement('base');
-      base.href = doc.baseURI;
-      var head = clonedDoc.querySelector('head');
-      head.insertBefore(base, head.firstChild);
-    }
-  }
-
-  function openDocument(doc) {
-    var uri = "data:text/html," + encodeURIComponent(doc.outerHTML);
-    var newWindow = window.open(uri);
-  }
-
-  function insertShadowStyles(doc, list) {
-    var template = document.createElement('template');
-    template.setAttribute('shadow-styles', '');
-    list.forEach(function(style) {
+  function createShadowStyles() {
+    let template = document.createElement('template');
+    template.setAttribute('s-s', '');
+    shadowStyleList.forEach(function(style) {
       template.content.appendChild(style);
     });
-    doc.querySelector('head').appendChild(template);
+    return template;
   }
 
-  function registerShadowRoot() {
-    var t = document.querySelector('template[shadow-styles]');
-    var shadowStyles = t && t.content.children;
-    var proto = Object.create(HTMLElement.prototype);
-    proto.createdCallback = function() {
-      var parent = this.parentNode;
+  let reifyScript = function() {
+    let t = document.querySelector('template[s-s]');
+    let shadowStyles = t && t.content.children;
+    let shadowRoots = document.querySelectorAll('s-r');
+    for (let i=0; i<shadowRoots.length; i++) {
+      let sr = shadowRoots[i];
+      let parent = sr.parentNode;
       if (parent) {
-        var shadowRoot = parent.createShadowRoot();
-        var child;
-        while ((child = this.firstChild)) {
-          if (child.localName == 'shadow-style') {
+        let shadowRoot = parent.attachShadow({mode:'open'});
+        let child;
+        while ((child = sr.firstChild)) {
+          if (child.localName == 's-s') {
             child.remove();
             child = shadowStyles[child.getAttribute('index')].cloneNode(true);
           }
           shadowRoot.appendChild(child);
         }
-        this.remove();
+        parent.removeChild(sr);
       }
-    };
-    document.registerElement('shadow-root', {prototype: proto});
+    }
+    document.body.hidden = false;
   }
 
-  function insertShadowRootRegistration(clonedDoc, upgrade) {
-    var script = document.createElement('script');
-    var openComment = upgrade ? '' : '/* Uncomment to upgrade:\n';
-    var closeComment = upgrade ? '' : '\n*/';
-    script.textContent =
-      openComment + '(' +
-      registerShadowRoot.toString() +
-      ')();' + closeComment;
-    clonedDoc.querySelector('head').appendChild(script);
+  function createReifyScript() {
+    let script = document.createElement('script');
+    script.textContent = `(${reifyScript})()`;
+    return script;
   }
 
-  var doc = document.documentElement;
-  var clonedDoc = doc.cloneNode(true);
-  replaceShadowRoots(doc, clonedDoc);
-  removeImports(clonedDoc);
-  removeScripts(clonedDoc);
-  insertBase(doc, clonedDoc);
-  insertShadowStyles(clonedDoc, shadowStyleList);
-  insertShadowRootRegistration(clonedDoc, upgrade);
-
-  openDocument(clonedDoc);
-
+  let isDocument = root instanceof Document;
+  root = isDocument ? root.documentElement : root;
+  let clonedRoot = root.cloneNode(true);
+  replaceShadowRoot(root, clonedRoot);
+  replaceShadowRoots(root, clonedRoot);
+  let styles = createShadowStyles();
+  let script = createReifyScript();
+  if (isDocument) {
+    clonedRoot.querySelector('head').appendChild(styles);
+    clonedRoot.querySelector('body').appendChild(script);
+    return clonedRoot.outerHTML;
+  } else {
+    let div = document.createElement('div');
+    div.appendChild(styles);
+    div.appendChild(clonedRoot);
+    div.appendChild(script);
+    return div.innerHTML;
+  }
 };
+
+const ssrify = function(file, url) {
+  dom.reconfigure({url});
+  dom.window.document.documentElement.innerHTML = fs.readFileSync(file);
+  return flush().then(() => serialize(dom.window.document));
+}
+
+module.exports = { serialize, ssrify }
